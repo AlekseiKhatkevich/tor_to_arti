@@ -1,5 +1,7 @@
 // /etc/tor/bridges.conf -> /home/hardcase/.config/arti
 // cargo run --  --from-path /etc/tor/bridges.conf --to-path  /home/hardcase/.config/arti
+// Тесты не забыть
+// Нормальную компиляцию сделать
 use clap::Parser;
 use std::path;
 use tor_to_arti::get_bridges_from_file;
@@ -20,6 +22,6 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
     println!("from: {:?}, into: {:?}, dry_run: {:?}", cli.from_path, cli.to_path, cli.dry_run);
-    
-    get_bridges_from_file(&cli.from_path);
+
+    let _ = get_bridges_from_file(&cli.from_path);
 }
