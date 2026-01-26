@@ -3,7 +3,7 @@
 // Нормальную компиляцию сделать
 // печать даты модификации файла последней
 use clap::Parser;
-use tor_to_arti::{get_bridges_from_file, print_bridges, print_last_modified};
+use tor_to_arti::{get_bridges_from_file, print_bridges, print_last_modified, save_bridges_in_arti_log};
 use std::path::PathBuf;
 use clap::ValueHint;
 
@@ -26,12 +26,12 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    print_last_modified(&cli.from);
+    let _ = print_last_modified(&cli.from);
     let bridges = get_bridges_from_file(&cli.from).unwrap();
-    
+
     if cli.dry_run {
         print_bridges(bridges);
     } else{
-        todo!()
+        save_bridges_in_arti_log(&cli.to, bridges).unwrap();
     }
 }

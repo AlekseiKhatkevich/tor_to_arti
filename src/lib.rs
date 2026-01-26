@@ -1,10 +1,21 @@
 use anyhow::Result;
 use chrono::{DateTime, Local};
 use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
 mod constants;
+use serde::Deserialize;
+use toml;
+
+// https://codingpackets.com/blog/rust-load-a-toml-file/
+#[derive(Debug, Deserialize)]
+struct ArtiConfig {
+    bridges: BridgesSection,
+}
+
+#[derive(Debug, Deserialize)]
+struct BridgesSection {
+    bridges: String,
+}
 
 
 // обработать вариант когда нет файла или прав доступа
@@ -27,8 +38,18 @@ pub fn print_bridges(bridges: Vec<String>) -> () {
     }
 }
 
-pub fn print_last_modified(path: &Path) -> () {
-    let mtime = fs::metadata(path).unwrap().modified().unwrap();
+pub fn print_last_modified(path: &Path) -> Result<()> {
+    let mtime = fs::metadata(path)?.modified()?;
     let dt: DateTime<Local> = DateTime::from(mtime);
     println!("Tor bridges last modified: {} \n", dt.format("%Y-%m-%d %H:%M:%S"));
+    Ok(())
+}
+
+pub fn save_bridges_in_arti_log(path: &Path, bridges: Vec<String>) -> Result<()> {
+    // let file  = File::open(path)?;
+    // let arti_config = toml::from_str()
+    let config_str = fs::read_to_string(&path)?;
+    let config: ArtiConfig = toml::from_str(&config_str).expect("Failed to parse TOML");
+    println!("{:#?}", config.bridges.bridges);
+    Ok(())
 }
