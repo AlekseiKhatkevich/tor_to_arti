@@ -1,27 +1,37 @@
 // /etc/tor/bridges.conf -> /home/hardcase/.config/arti
-// cargo run --  --from-path /etc/tor/bridges.conf --to-path  /home/hardcase/.config/arti
 // Тесты не забыть
 // Нормальную компиляцию сделать
+// печать даты модификации файла последней
 use clap::Parser;
-use std::path;
-use tor_to_arti::get_bridges_from_file;
+use tor_to_arti::{get_bridges_from_file, print_bridges, print_last_modified};
+use std::path::PathBuf;
+use clap::ValueHint;
 
 ///Copy bridges from Tor file into Arti config file
-#[derive(Parser)]
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
 struct Cli {
     /// Path to Tor bridges file
-    #[arg(short = 'f', long)]
-    from_path: path::PathBuf,
+    #[arg(short = 'f', long = "from", value_name = "FILE", value_hint = ValueHint::FilePath)]
+    from: PathBuf,
+
     /// Path to Arti config file
-    #[arg(short = 't', long)]
-    to_path: path::PathBuf,
-    #[arg(short, long, default_value_t = false)]
+    #[arg(short = 't', long = "to", value_name = "FILE", value_hint = ValueHint::FilePath)]
+    to: PathBuf,
+
+    /// Don't write changes; only show what would be done
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
     dry_run: bool,
 }
 
 fn main() {
     let cli = Cli::parse();
-    println!("from: {:?}, into: {:?}, dry_run: {:?}", cli.from_path, cli.to_path, cli.dry_run);
-
-    let _ = get_bridges_from_file(&cli.from_path);
+    print_last_modified(&cli.from);
+    let bridges = get_bridges_from_file(&cli.from).unwrap();
+    
+    if cli.dry_run {
+        print_bridges(bridges);
+    } else{
+        todo!()
+    }
 }
