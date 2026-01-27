@@ -1,21 +1,12 @@
 use anyhow::Result;
 use chrono::{DateTime, Local};
 use std::fs;
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 mod constants;
-use serde::{Deserialize, Serialize};
-use toml_edit::{Document, value, DocumentMut};
-
-#[derive(Debug, Deserialize, Serialize)]
-struct ArtiConfig {
-    bridges: BridgesSection,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct BridgesSection {
-    bridges: String,
-}
+use toml_edit::{value, DocumentMut};
+use tempfile::NamedTempFile;
 
 
 // обработать вариант когда нет файла или прав доступа
@@ -46,19 +37,16 @@ pub fn print_last_modified(path: &Path) -> Result<()> {
 }
 
 pub fn save_bridges_in_arti_log(path: &Path, bridges: &[String]) -> Result<()> {
-    let text = fs::read_to_string(&path)?;
-    let new_body = bridges.join("\n");
-    let mut doc = text.parse::<DocumentMut>().expect("invalid doc");
-   
-    doc["bridges"]["bridges"] = value(new_body);
-    doc["bridges"].as_inline_table_mut().map(|t| t.fmt());
+    let text = fs::read_to_string(path)?;
+    let mut doc = text.parse::<DocumentMut>()?;
 
-    let mut config_write = fs::OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(&path)?;
+    doc["bridges"]["bridges"] = value(bridges.join("\n"));
 
-    write!(config_write, "{}", doc.to_string())?;
+    let dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut tmp = NamedTempFile::new_in(dir)?;
+    tmp.write_all(doc.to_string().as_bytes())?;
+    tmp.as_file().sync_all()?;
+    tmp.persist(path)?;
 
     Ok(())
 }
