@@ -67,31 +67,28 @@ pub fn save_bridges_in_arti_log<P: AsRef<Path>>(path: P, bridges: Option<&[Strin
 
 fn pids_by_name(name: &str) -> Vec<u32> {
     let mut sys = System::new_all();
-    sys.refresh_specifics(RefreshKind::default()
-        .with_processes(ProcessRefreshKind::everything()));
+    sys.refresh_specifics(
+        RefreshKind::default()
+            .with_processes(ProcessRefreshKind::everything()),
+    );
 
     sys.processes()
         .iter()
-        .filter_map(|(&pid, proc_)| {
-            if proc_.name() == name {
-                Some(pid.as_u32())
-            } else {
-                None
-            }
-        })
+        .filter_map(|(&pid, proc_)| (proc_.name() == name).then(|| pid.as_u32()))
         .collect()
 }
 
 
-pub fn reload_config(name: Option<&str>) -> Result<()> {
+pub fn reload_config(name: Option<&str>) -> Result<(), anyhow::Error> {
     let name = name.unwrap_or(constants::ARTI_EXECUTABLE_NAME);
-    let pids = pids_by_name(&name);
-    println!("Found following pids by search string '{}' {:?}",name, pids);
-
-    for pid in pids {
-        let pid = Pid::from_raw(pid as i32);
-        kill(pid, SIGHUP)?
+    let pids = pids_by_name(name);
+    println!("Found {} PID(s) for '{}': {:?}", pids.len(), name, pids);
+    
+    for pid_u32 in pids {
+        let pid = Pid::from_raw(i32::try_from(pid_u32)?);
+        kill(pid, SIGHUP)?;
+        }
+    Ok(())
     }
 
-    Ok(())
-}
+   

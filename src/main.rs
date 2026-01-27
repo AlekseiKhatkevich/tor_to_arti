@@ -33,14 +33,17 @@ struct Cli {
     /// Delete bridges section
     #[arg(long, action = clap::ArgAction::SetTrue)]
     delete_bridges: bool,
+
+    /// Reload Arti config with SIGHUP
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    reload_config: bool,
 }
 
 fn main() {
-    // if let Err(e) = run() {
-    //     eprintln!("Error: {}", e);
-    //     std::process::exit(1);
-    // }
-    reload_config(None).unwrap();
+    if let Err(e) = run() {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
 }
 
 fn run() -> anyhow::Result<()> {
@@ -54,6 +57,9 @@ fn run() -> anyhow::Result<()> {
         save_bridges_in_arti_log(&cli.to, None)?;
     } else {
         save_bridges_in_arti_log(&cli.to, Some(&bridges))?;
+    }
+    if cli.reload_config {
+        reload_config(None)?
     }
 
     Ok(())
