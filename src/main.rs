@@ -2,6 +2,7 @@
 // Тесты не забыть
 // Нормальную компиляцию сделать
 // печать даты модификации файла последней
+// удалять секцию с мостами по флагу
 use clap::Parser;
 use tor_to_arti::{get_bridges_from_file, print_bridges, print_last_modified, save_bridges_in_arti_log};
 use std::path::PathBuf;
@@ -22,6 +23,10 @@ struct Cli {
     /// Don't write changes; only show what would be done
     #[arg(short, long, action = clap::ArgAction::SetTrue)]
     dry_run: bool,
+
+    /// Delete bridges section
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    delete_bridges: bool,
 }
 
 fn main() {

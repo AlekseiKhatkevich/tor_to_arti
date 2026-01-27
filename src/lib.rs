@@ -7,7 +7,6 @@ mod constants;
 use serde::{Deserialize, Serialize};
 use toml_edit::{Document, value, DocumentMut};
 
-// https://codingpackets.com/blog/rust-load-a-toml-file/
 #[derive(Debug, Deserialize, Serialize)]
 struct ArtiConfig {
     bridges: BridgesSection,
@@ -47,12 +46,19 @@ pub fn print_last_modified(path: &Path) -> Result<()> {
 }
 
 pub fn save_bridges_in_arti_log(path: &Path, bridges: &[String]) -> Result<()> {
-    let mut text = fs::read_to_string(&path)?;
+    let text = fs::read_to_string(&path)?;
     let new_body = bridges.join("\n");
     let mut doc = text.parse::<DocumentMut>().expect("invalid doc");
-    // println!("{doc:?}");
+   
     doc["bridges"]["bridges"] = value(new_body);
-    println!("{}", doc["bridges"]["bridges"]);
+    doc["bridges"].as_inline_table_mut().map(|t| t.fmt());
+
+    let mut config_write = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&path)?;
+
+    write!(config_write, "{}", doc.to_string())?;
 
     Ok(())
 }
