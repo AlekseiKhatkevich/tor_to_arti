@@ -1,21 +1,26 @@
-use anyhow::Result;
+use anyhow::{Error, Result};
 use chrono::{DateTime, Local};
 use std::fs;
-use std::fs::OpenOptions;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 mod constants;
-use toml_edit::{value, DocumentMut};
 use tempfile::NamedTempFile;
+use toml_edit::{value, DocumentMut};
 
 
-// обработать вариант когда нет файла или прав доступа
-pub fn get_bridges_from_file(path: &PathBuf) -> Result<Vec<String>> {
-    let contents = fs::read_to_string(&path)?;
+pub fn get_bridges_from_file<P: AsRef<Path>>(path: P) -> Result<Vec<String>> {
+    let contents = fs::read_to_string(&path)
+        .map_err(
+            |e| Error::msg(
+                format!("failed to read {}: {}", path.as_ref().display(), e)
+            )
+        )?;
+
     let lines = contents
         .lines()
         .map(str::trim)
         .filter(|s| !s.is_empty())
+        .filter(|s| !s.starts_with("#"))
         .filter(|s| s.starts_with(constants::TOR_BRIDGE_PREFIX))
         .map(String::from)
         .collect();
@@ -29,24 +34,30 @@ pub fn print_bridges(bridges: Vec<String>) -> () {
     }
 }
 
-pub fn print_last_modified(path: &Path) -> Result<()> {
+pub fn print_last_modified<P: AsRef<Path>>(path: P) -> Result<()> {
     let mtime = fs::metadata(path)?.modified()?;
     let dt: DateTime<Local> = DateTime::from(mtime);
     println!("Tor bridges last modified: {} \n", dt.format("%Y-%m-%d %H:%M:%S"));
     Ok(())
 }
 
-pub fn save_bridges_in_arti_log(path: &Path, bridges: &[String]) -> Result<()> {
-    let text = fs::read_to_string(path)?;
+pub fn save_bridges_in_arti_log<P: AsRef<Path>>(path: P, bridges: Option<&[String]>) -> Result<()> {
+    let path = path.as_ref();
+    let text = fs::read_to_string(&path)?;
     let mut doc = text.parse::<DocumentMut>()?;
 
-    doc["bridges"]["bridges"] = value(bridges.join("\n"));
+    if let Some(bridges) = bridges {
+        doc["bridges"]["bridges"] = value(bridges.join("\n"));
+    } else {
+        doc["bridges"].as_table_mut().map(|t| t.remove("bridges"));
+    }
 
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     let mut tmp = NamedTempFile::new_in(dir)?;
     tmp.write_all(doc.to_string().as_bytes())?;
     tmp.as_file().sync_all()?;
     tmp.persist(path)?;
+    fs::File::open(dir)?.sync_all()?;
 
     Ok(())
 }

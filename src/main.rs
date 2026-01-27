@@ -1,8 +1,6 @@
 // /etc/tor/bridges.conf -> /home/hardcase/.config/arti
 // Тесты не забыть
 // Нормальную компиляцию сделать
-// печать даты модификации файла последней
-// удалять секцию с мостами по флагу
 //добавить сигнал перезагрузки арти
 use clap::Parser;
 use tor_to_arti::{get_bridges_from_file, print_bridges, print_last_modified, save_bridges_in_arti_log};
@@ -31,16 +29,24 @@ struct Cli {
 }
 
 fn main() {
+    if let Err(e) = run() {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
+}
+
+fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let _ = print_last_modified(&cli.from);
-    let bridges = get_bridges_from_file(&cli.from).unwrap();
+    print_last_modified(&cli.from).ok();
+    let bridges = get_bridges_from_file(&cli.from)?;
 
     if cli.dry_run {
         print_bridges(bridges);
-    } else if cli.delete_bridges{
-        save_bridges_in_arti_log(&cli.to, &[String::new()]).unwrap();
+    } else if cli.delete_bridges {
+        save_bridges_in_arti_log(&cli.to, None)?;
+    } else {
+        save_bridges_in_arti_log(&cli.to, Some(&bridges))?;
     }
-    else {
-        save_bridges_in_arti_log(&cli.to, &bridges).unwrap();
-    }
+
+    Ok(())
 }
