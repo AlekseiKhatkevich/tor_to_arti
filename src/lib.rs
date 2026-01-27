@@ -28,8 +28,8 @@ pub fn get_bridges_from_file<P: AsRef<Path>>(path: P) -> Result<Vec<String>> {
     Ok(lines)
 }
 
-pub fn print_bridges(bridges: Vec<String>) -> () {
-    for bridge in &bridges {
+pub fn print_bridges(bridges: &[String]) -> () {
+    for bridge in bridges {
         println!("{bridge}");
     }
 }

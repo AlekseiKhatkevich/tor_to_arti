@@ -41,7 +41,7 @@ fn run() -> anyhow::Result<()> {
     let bridges = get_bridges_from_file(&cli.from)?;
 
     if cli.dry_run {
-        print_bridges(bridges);
+        print_bridges(&bridges);
     } else if cli.delete_bridges {
         save_bridges_in_arti_log(&cli.to, None)?;
     } else {
