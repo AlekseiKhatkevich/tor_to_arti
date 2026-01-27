@@ -1,11 +1,18 @@
 // /etc/tor/bridges.conf -> /home/hardcase/.config/arti
 // Тесты не забыть
 // Нормальную компиляцию сделать
-//добавить сигнал перезагрузки арти
+// коммунты к функциям
 use clap::Parser;
-use tor_to_arti::{get_bridges_from_file, print_bridges, print_last_modified, save_bridges_in_arti_log};
-use std::path::PathBuf;
 use clap::ValueHint;
+use std::path::PathBuf;
+use tor_to_arti::{
+    get_bridges_from_file,
+    print_bridges,
+    print_last_modified,
+    save_bridges_in_arti_log,
+    reload_config,
+};
+
 
 ///Copy bridges from Tor file into Arti config file
 #[derive(Parser, Debug)]
@@ -29,10 +36,11 @@ struct Cli {
 }
 
 fn main() {
-    if let Err(e) = run() {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    }
+    // if let Err(e) = run() {
+    //     eprintln!("Error: {}", e);
+    //     std::process::exit(1);
+    // }
+    reload_config(None).unwrap();
 }
 
 fn run() -> anyhow::Result<()> {
