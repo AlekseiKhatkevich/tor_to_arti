@@ -32,6 +32,6 @@ fn main() {
     if cli.dry_run {
         print_bridges(bridges);
     } else{
-        save_bridges_in_arti_log(&cli.to, bridges).unwrap();
+        save_bridges_in_arti_log(&cli.to, &bridges).unwrap();
     }
 }

@@ -45,11 +45,14 @@ pub fn print_last_modified(path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn save_bridges_in_arti_log(path: &Path, bridges: Vec<String>) -> Result<()> {
-    // let file  = File::open(path)?;
-    // let arti_config = toml::from_str()
+pub fn save_bridges_in_arti_log(path: &Path, bridges: &[String]) -> Result<()> {
     let config_str = fs::read_to_string(&path)?;
-    let config: ArtiConfig = toml::from_str(&config_str).expect("Failed to parse TOML");
+    let config: ArtiConfig = toml::from_str(&config_str)?;
     println!("{:#?}", config.bridges.bridges);
+
+    let bridges_string = bridges.join("\n");
+
+    println!("{bridges_string}");
+
     Ok(())
 }
