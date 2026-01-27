@@ -10,3 +10,4 @@ anyhow = "1.0.100"
 chrono = "0.4.43"
 toml = "0.9.11"
 serde = { version = "1.0.136", features = ["derive"] }
+toml_edit = "0.24.0"

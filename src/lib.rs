@@ -1,18 +1,19 @@
 use anyhow::Result;
 use chrono::{DateTime, Local};
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 mod constants;
-use serde::Deserialize;
-use toml;
+use serde::{Deserialize, Serialize};
+use toml_edit::{Document, value, DocumentMut};
 
 // https://codingpackets.com/blog/rust-load-a-toml-file/
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct ArtiConfig {
     bridges: BridgesSection,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct BridgesSection {
     bridges: String,
 }
@@ -46,13 +47,12 @@ pub fn print_last_modified(path: &Path) -> Result<()> {
 }
 
 pub fn save_bridges_in_arti_log(path: &Path, bridges: &[String]) -> Result<()> {
-    let config_str = fs::read_to_string(&path)?;
-    let config: ArtiConfig = toml::from_str(&config_str)?;
-    println!("{:#?}", config.bridges.bridges);
-
-    let bridges_string = bridges.join("\n");
-
-    println!("{bridges_string}");
+    let mut text = fs::read_to_string(&path)?;
+    let new_body = bridges.join("\n");
+    let mut doc = text.parse::<DocumentMut>().expect("invalid doc");
+    // println!("{doc:?}");
+    doc["bridges"]["bridges"] = value(new_body);
+    println!("{}", doc["bridges"]["bridges"]);
 
     Ok(())
 }
