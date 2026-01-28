@@ -1,6 +1,6 @@
 use anyhow::{Error, Result};
 use chrono::{DateTime, Local};
-use nix::sys::signal::{kill, Signal::SIGHUP};
+use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 use std::fs;
 use std::io::Write;
@@ -85,7 +85,7 @@ pub fn reload_config(name: Option<&str>) -> Result<(), anyhow::Error> {
 
     for pid_u32 in pids {
         let pid = Pid::from_raw(i32::try_from(pid_u32)?);
-        kill(pid, SIGHUP)?;
+        kill(pid, Signal::SIGHUP)?;
         }
     Ok(())
     }
@@ -97,13 +97,8 @@ mod tests {
     use std::process::{Child, Command};
     use std::thread::sleep as thread_sleep;
     use std::time::Duration;
-    use std::process::{Stdio};
-    use std::io::Read;
-    use std::thread::sleep;
-    use anyhow::Result;
-    use nix::sys::signal::{kill, Signal};
-    use nix::unistd::Pid;
 
+    /// Запускаем unix sleep
     fn spawn_sleep(seconds: Duration) -> Result<Child> {
         let child = Command::new("sleep")
             .arg(seconds.as_secs().to_string())
@@ -113,6 +108,7 @@ mod tests {
     }
 
     #[test]
+    /// Позитивный тест ф-ции get_pids_by_name. Запускает sleep и получаем его пид.
     fn test_get_pids_by_name_positive() {
         let mut child = spawn_sleep(Duration::from_secs(5))
             .expect("Failed to spawn sleep command");
@@ -128,6 +124,8 @@ mod tests {
     }
 
     #[test]
+    /// Негативный тест ф-ции get_pids_by_name. На несуществующее имя процесса
+    /// ф-ция не отдает никаких pid-ов.
     fn test_get_pids_by_name_negative() {
         let proc_name = "!!!RaNdOm BuLLshit~~~";
         let pids_from_f = pids_by_name(proc_name);
@@ -135,6 +133,9 @@ mod tests {
     }
 
     #[test]
+    /// Позитивный тест reload_config. Она должна отправлять SIGHUP процессу по его имени.
+    /// Используем unix sleep который получив SIGHUP должен завершится. Если завершился -
+    /// то значит SIGHUP получен.
     fn reload_config_positive() {
         let mut child = spawn_sleep(Duration::from_secs(5))
             .expect("Failed to spawn sleep command");
@@ -142,7 +143,7 @@ mod tests {
         assert!(pid >  0);
 
         thread_sleep(Duration::from_millis(100));
-        reload_config(Some("sleep")).ok();
+        reload_config(Some("sleep")).expect("reload_config failed");
         thread_sleep(Duration::from_millis(200));
 
         match child.try_wait().unwrap() {
@@ -154,9 +155,24 @@ mod tests {
                 panic!("sleep still running after reload_config");
             }
         }
-
-
-
     }
 
+    #[test]
+    /// Позитивный тест ф-ции get_bridges_from_file. Даем ей путь на тестовый файл с тестовыми
+    /// мостами и затем сравниваем результат с ожидаемым.
+    fn test_get_bridges_from_file_positive() {
+        let path = Path::new("src/tests/data/bridges.conf");
+        let bridges = get_bridges_from_file(path).expect("Read bridges file");
+        let expected = vec![
+            "Bridge 64.65.62.199:443 4B0F565A6D8A005504EDF99CBC2DFE12E7D97D81".to_string(),
+            "Bridge 37.187.74.97:9001 F745D5A34A289EF0C88544D0DC400B21120F5E81".to_string(),
+            "Bridge 72.167.47.69:80 946D40F81F304814AE2D1A83CB4F219336E90ABF".to_string(),
+        ];
+
+        assert_eq!(bridges.len(), 3, "Vec should contain 3 elements");
+        assert!(
+            !bridges.contains(&String::from("UseBridges 1")),
+            "Vec should not contains 'UseBridges'");
+        assert_eq!(expected, bridges, "Expected bridges result mismatch");
+    }
 }
