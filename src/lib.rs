@@ -96,11 +96,12 @@ mod tests {
     use super::*;
     use std::process::{Child, Command};
     use std::io;
+    use std::time::{Duration, Instant};
+    use std::thread::sleep as thread_sleep;
 
-
-    fn spawn_sleep(seconds: u8) -> Result<Child> {
+    fn spawn_sleep(seconds: Duration) -> Result<Child> {
         let child = Command::new("sleep")
-            .arg(seconds.to_string())
+            .arg(seconds.as_secs().to_string())
             .spawn()?;
 
         Ok(child)
@@ -108,13 +109,15 @@ mod tests {
 
     #[test]
     fn test_get_pids_by_name_positive() {
-        let mut child = spawn_sleep(60).expect("Failed to spawn sleep command");
+        let mut child = spawn_sleep(Duration::from_secs(5))
+            .expect("Failed to spawn sleep command");
         let pid = child.id();
         assert!(pid >  0);
 
+        thread_sleep(Duration::from_millis(100));
         let pids_from_f = pids_by_name("sleep");
 
-        assert!(pids_from_f.contains(&pid));
+        assert!(pids_from_f.contains(&pid), "spawned pid not found in result");
         child.kill().ok();
         child.wait().ok();
     }
