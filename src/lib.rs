@@ -95,9 +95,14 @@ pub fn reload_config(name: Option<&str>) -> Result<(), anyhow::Error> {
 mod tests {
     use super::*;
     use std::process::{Child, Command};
-    use std::io;
-    use std::time::{Duration, Instant};
     use std::thread::sleep as thread_sleep;
+    use std::time::Duration;
+    use std::process::{Stdio};
+    use std::io::Read;
+    use std::thread::sleep;
+    use anyhow::Result;
+    use nix::sys::signal::{kill, Signal};
+    use nix::unistd::Pid;
 
     fn spawn_sleep(seconds: Duration) -> Result<Child> {
         let child = Command::new("sleep")
@@ -121,4 +126,37 @@ mod tests {
         child.kill().ok();
         child.wait().ok();
     }
+
+    #[test]
+    fn test_get_pids_by_name_negative() {
+        let proc_name = "!!!RaNdOm BuLLshit~~~";
+        let pids_from_f = pids_by_name(proc_name);
+        assert!(pids_from_f.is_empty());
+    }
+
+    #[test]
+    fn reload_config_positive() {
+        let mut child = spawn_sleep(Duration::from_secs(5))
+            .expect("Failed to spawn sleep command");
+        let pid = child.id();
+        assert!(pid >  0);
+
+        thread_sleep(Duration::from_millis(100));
+        reload_config(Some("sleep")).ok();
+        thread_sleep(Duration::from_millis(200));
+
+        match child.try_wait().unwrap() {
+            Some(status) => {
+                assert!(!status.success());
+            }
+            None => {
+                let _ = kill(Pid::from_raw(pid as i32), Signal::SIGKILL);
+                panic!("sleep still running after reload_config");
+            }
+        }
+
+
+
+    }
+
 }
