@@ -9,8 +9,8 @@ use tor_to_arti::{
     get_bridges_from_file,
     print_bridges,
     print_last_modified,
-    save_bridges_in_arti_log,
     reload_config,
+    save_bridges_in_arti_log,
 };
 
 

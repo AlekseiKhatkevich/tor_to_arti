@@ -50,7 +50,7 @@ pub fn save_bridges_in_arti_log<P: AsRef<Path>>(path: P, bridges: Option<&[Strin
     let mut doc = text.parse::<DocumentMut>()?;
 
     if let Some(bridges) = bridges {
-        doc["bridges"]["bridges"] = value(bridges.join("\n"));
+        doc["bridges"]["bridges"] = value(format!("{}\n", bridges.join("\n")));
     } else {
         doc["bridges"].as_table_mut().map(|t| t.remove("bridges"));
     }
@@ -68,8 +68,7 @@ pub fn save_bridges_in_arti_log<P: AsRef<Path>>(path: P, bridges: Option<&[Strin
 fn pids_by_name(name: &str) -> Vec<u32> {
     let mut sys = System::new_all();
     sys.refresh_specifics(
-        RefreshKind::default()
-            .with_processes(ProcessRefreshKind::everything()),
+        RefreshKind::default().with_processes(ProcessRefreshKind::everything().without_tasks()),
     );
 
     sys.processes()
@@ -83,7 +82,7 @@ pub fn reload_config(name: Option<&str>) -> Result<(), anyhow::Error> {
     let name = name.unwrap_or(constants::ARTI_EXECUTABLE_NAME);
     let pids = pids_by_name(name);
     println!("Found {} PID(s) for '{}': {:?}", pids.len(), name, pids);
-    
+
     for pid_u32 in pids {
         let pid = Pid::from_raw(i32::try_from(pid_u32)?);
         kill(pid, SIGHUP)?;
@@ -91,4 +90,32 @@ pub fn reload_config(name: Option<&str>) -> Result<(), anyhow::Error> {
     Ok(())
     }
 
-   
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::{Child, Command};
+    use std::io;
+
+
+    fn spawn_sleep(seconds: u8) -> Result<Child> {
+        let child = Command::new("sleep")
+            .arg(seconds.to_string())
+            .spawn()?;
+
+        Ok(child)
+    }
+
+    #[test]
+    fn test_get_pids_by_name_positive() {
+        let mut child = spawn_sleep(60).expect("Failed to spawn sleep command");
+        let pid = child.id();
+        assert!(pid >  0);
+
+        let pids_from_f = pids_by_name("sleep");
+
+        assert!(pids_from_f.contains(&pid));
+        child.kill().ok();
+        child.wait().ok();
+    }
+}
