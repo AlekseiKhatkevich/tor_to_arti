@@ -1,7 +1,8 @@
 // /etc/tor/bridges.conf -> /home/hardcase/.config/arti
-// Тесты не забыть
 // Нормальную компиляцию сделать
 // коммунты к функциям
+// cargo run --  -f /etc/tor/bridges.conf -t  /home/hardcase/.config/arti/arti.toml  -r
+
 use clap::Parser;
 use clap::ValueHint;
 use std::path::PathBuf;

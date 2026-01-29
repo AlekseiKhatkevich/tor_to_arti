@@ -12,3 +12,6 @@ toml_edit = "0.24.0"
 tempfile = "3.24.0"
 sysinfo = "0.38.0"
 nix = { version = "0.31.1", features = ["process", "signal"] }
+
+[dev-dependencies]
+filetime = "0.2.27"

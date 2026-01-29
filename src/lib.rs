@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Local};
+use chrono;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 use std::fs;
@@ -33,11 +33,15 @@ pub fn print_bridges(bridges: &[String]) -> () {
     }
 }
 
-pub fn print_last_modified<P: AsRef<Path>>(path: P) -> Result<()> {
+fn print_last_modified_to<W: Write, P: AsRef<Path>>(mut out: W, path: P) -> Result<()> {
     let mtime = fs::metadata(path)?.modified()?;
-    let dt: DateTime<Local> = DateTime::from(mtime);
-    println!("Tor bridges last modified: {} \n", dt.format("%Y-%m-%d %H:%M:%S"));
+    let dt: chrono::DateTime<chrono::Local> = chrono::DateTime::from(mtime);
+    writeln!(out, "Tor bridges last modified: {} \n", dt.format("%Y-%m-%d %H:%M:%S"))?;
     Ok(())
+}
+
+pub fn print_last_modified<P: AsRef<Path>>(path: P) -> Result<()> {
+    print_last_modified_to(std::io::stdout(), path)
 }
 
 pub fn save_bridges_in_arti_log<P: AsRef<Path>>(path: P, bridges: Option<&[String]>) -> Result<()> {
@@ -90,9 +94,13 @@ pub fn reload_config(name: Option<&str>) -> Result<(), anyhow::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{Local, TimeZone};
+    use filetime::{set_file_times, FileTime};
+    use std::io::Cursor;
     use std::process::{Child, Command};
     use std::thread::sleep as thread_sleep;
     use std::time::Duration;
+    use std::time::SystemTime;
 
     /// Запускаем unix sleep
     fn spawn_sleep(seconds: Duration) -> Result<Child> {
@@ -173,6 +181,8 @@ mod tests {
     }
 
     #[test]
+    /// Негативный тест get_bridges_from_file. Если файл не существует по данному пути то
+    /// получаем исключение и проверяем его.
     fn test_get_bridges_from_file_negative() {
         let path = Path::new("src/tests/data/random_bullshit.conf");
         let bridges = get_bridges_from_file(path);
@@ -190,5 +200,30 @@ mod tests {
             .expect("cause should be std::io::Error");
 
         assert_eq!(io_err.kind(), std::io::ErrorKind::NotFound);
+    }
+
+    #[test]
+    /// Позитивный тест print_last_modified. Устанавливаем last-modified на файле и затем
+    /// с помощью ф-ции печатаем его значение в консоль.
+    fn test_print_last_modified_positive() {
+        let path = Path::new("src/tests/data/bridges.conf");
+        let desired = SystemTime::now();
+        let ft = FileTime::from_system_time(desired);
+        set_file_times(&path, ft, ft).unwrap();
+        let mut buf = Cursor::new(Vec::new());
+
+        print_last_modified_to(&mut buf, path).expect("print failed");;
+
+        let expected_prefix = "Tor bridges last modified: ";
+        let output = String::from_utf8(buf.into_inner()).expect("invalid utf8");
+        assert!(output.starts_with(expected_prefix));
+
+        let date_part = output[expected_prefix.len() ..].trim();
+        assert_eq!(date_part.len(), 19);
+
+        let parsed = Local.datetime_from_str(date_part, "%Y-%m-%d %H:%M:%S").unwrap();
+        let desired_dt: chrono::DateTime<Local> = chrono::DateTime::from(desired);
+        let diff = (parsed.timestamp() - desired_dt.timestamp()).abs();
+        assert!(diff <= 2, "mtime differs more than 2 seconds: {}", diff);
     }
 }
