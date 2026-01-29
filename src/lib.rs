@@ -111,6 +111,15 @@ mod tests {
         Ok(child)
     }
 
+    /// Нормализуем строки в вектор
+    fn normalize(s: &str) -> Vec<String> {
+        s.lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect()
+    }
+
+
     #[test]
     /// Позитивный тест ф-ции get_pids_by_name. Запускает sleep и получаем его пид.
     fn test_get_pids_by_name_positive() {
@@ -212,7 +221,7 @@ mod tests {
         set_file_times(&path, ft, ft).unwrap();
         let mut buf = Cursor::new(Vec::new());
 
-        print_last_modified_to(&mut buf, path).expect("print failed");;
+        print_last_modified_to(&mut buf, path).expect("print failed");
 
         let expected_prefix = "Tor bridges last modified: ";
         let output = String::from_utf8(buf.into_inner()).expect("invalid utf8");
@@ -226,4 +235,32 @@ mod tests {
         let diff = (parsed.timestamp() - desired_dt.timestamp()).abs();
         assert!(diff <= 2, "mtime differs more than 2 seconds: {}", diff);
     }
+
+
+    #[test]
+    fn test_save_bridges_in_arti_log_positive() {
+        let bridges_path = Path::new("src/tests/data/bridges.conf");
+        let bridges = get_bridges_from_file(&bridges_path).unwrap();
+        let config_path = Path::new("src/tests/data/config.toml");
+
+        save_bridges_in_arti_log(&config_path, Some(&bridges)).ok();
+
+        let text = fs::read_to_string(&config_path).unwrap();
+        let doc = text.parse::<DocumentMut>().unwrap();
+
+        let expected_bridges =
+            "Bridge 64.65.62.199:443 4B0F565A6D8A005504EDF99CBC2DFE12E7D97D81
+            Bridge 37.187.74.97:9001 F745D5A34A289EF0C88544D0DC400B21120F5E81
+            Bridge 72.167.47.69:80 946D40F81F304814AE2D1A83CB4F219336E90ABF";
+
+        let bridges_from_config_file =  doc["bridges"]["bridges"]
+           .as_str()
+           .expect("missing bridges.bridges");
+
+        let exp_lines = normalize(expected_bridges).sort();
+        let got_lines = normalize(bridges_from_config_file).sort();
+
+        assert_eq!(exp_lines, got_lines);
+    }
+
 }
