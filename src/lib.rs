@@ -1,4 +1,4 @@
-use anyhow::{Error, Result};
+use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
@@ -13,11 +13,7 @@ mod constants;
 
 pub fn get_bridges_from_file<P: AsRef<Path>>(path: P) -> Result<Vec<String>> {
     let contents = fs::read_to_string(&path)
-        .map_err(
-            |e| Error::msg(
-                format!("failed to read {}: {}", path.as_ref().display(), e)
-            )
-        )?;
+        .with_context(|| format!("failed to read {}", path.as_ref().display()))?;
 
     let lines = contents
         .lines()
@@ -113,7 +109,7 @@ mod tests {
         let mut child = spawn_sleep(Duration::from_secs(5))
             .expect("Failed to spawn sleep command");
         let pid = child.id();
-        assert!(pid >  0);
+        assert!(pid >  0, "wrong child pid");
 
         thread_sleep(Duration::from_millis(100));
         let pids_from_f = pids_by_name("sleep");
@@ -129,7 +125,7 @@ mod tests {
     fn test_get_pids_by_name_negative() {
         let proc_name = "!!!RaNdOm BuLLshit~~~";
         let pids_from_f = pids_by_name(proc_name);
-        assert!(pids_from_f.is_empty());
+        assert!(pids_from_f.is_empty(), "We strangely got some pids..why?");
     }
 
     #[test]
@@ -140,7 +136,7 @@ mod tests {
         let mut child = spawn_sleep(Duration::from_secs(5))
             .expect("Failed to spawn sleep command");
         let pid = child.id();
-        assert!(pid >  0);
+        assert!(pid >  0, "wrong child pid");
 
         thread_sleep(Duration::from_millis(100));
         reload_config(Some("sleep")).expect("reload_config failed");
@@ -148,7 +144,7 @@ mod tests {
 
         match child.try_wait().unwrap() {
             Some(status) => {
-                assert!(!status.success());
+                assert!(!status.success(), "Child exit status should not be == 0");
             }
             None => {
                 let _ = kill(Pid::from_raw(pid as i32), Signal::SIGKILL);
@@ -174,5 +170,25 @@ mod tests {
             !bridges.contains(&String::from("UseBridges 1")),
             "Vec should not contains 'UseBridges'");
         assert_eq!(expected, bridges, "Expected bridges result mismatch");
+    }
+
+    #[test]
+    fn test_get_bridges_from_file_negative() {
+        let path = Path::new("src/tests/data/random_bullshit.conf");
+        let bridges = get_bridges_from_file(path);
+
+        assert!(bridges.is_err(), "Expected error when reading nonexistent file");
+        let err = bridges.unwrap_err();
+        let msg = format!("{}", err);
+        assert!(
+            msg.contains("failed to read"),
+            "error message should contain 'failed to read', got: {}",
+            msg
+        );
+        let io_err = err
+            .downcast_ref::<std::io::Error>()
+            .expect("cause should be std::io::Error");
+
+        assert_eq!(io_err.kind(), std::io::ErrorKind::NotFound);
     }
 }
