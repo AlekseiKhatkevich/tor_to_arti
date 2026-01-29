@@ -11,6 +11,7 @@ use toml_edit::{value, DocumentMut};
 
 mod constants;
 
+/// Получение мостов тора из файла (обычно он идет инклюдом в тор конфиг)
 pub fn get_bridges_from_file<P: AsRef<Path>>(path: P) -> Result<Vec<String>> {
     let contents = fs::read_to_string(&path)
         .with_context(|| format!("failed to read {}", path.as_ref().display()))?;
@@ -27,12 +28,14 @@ pub fn get_bridges_from_file<P: AsRef<Path>>(path: P) -> Result<Vec<String>> {
     Ok(lines)
 }
 
+/// Печатаем мосты в консоль.
 pub fn print_bridges(bridges: &[String]) -> () {
     for bridge in bridges {
         println!("{bridge}");
     }
 }
 
+/// Печатаем в буфер дату последней модификации файла
 fn print_last_modified_to<W: Write, P: AsRef<Path>>(mut out: W, path: P) -> Result<()> {
     let mtime = fs::metadata(path)?.modified()?;
     let dt: chrono::DateTime<chrono::Local> = chrono::DateTime::from(mtime);
@@ -40,10 +43,12 @@ fn print_last_modified_to<W: Write, P: AsRef<Path>>(mut out: W, path: P) -> Resu
     Ok(())
 }
 
+/// Печатаем в консоль дату последней модификации файла
 pub fn print_last_modified<P: AsRef<Path>>(path: P) -> Result<()> {
     print_last_modified_to(std::io::stdout(), path)
 }
 
+/// ССохраняем полученные мосты в файл Арти конфига
 pub fn save_bridges_in_arti_log<P: AsRef<Path>>(path: P, bridges: Option<&[String]>) -> Result<()> {
     let path = path.as_ref();
     let text = fs::read_to_string(&path)?;
@@ -65,6 +70,7 @@ pub fn save_bridges_in_arti_log<P: AsRef<Path>>(path: P, bridges: Option<&[Strin
     Ok(())
 }
 
+/// Получаем набор pid процессов по его имени
 fn pids_by_name(name: &str) -> Vec<u32> {
     let mut sys = System::new_all();
     sys.refresh_specifics(
@@ -77,7 +83,7 @@ fn pids_by_name(name: &str) -> Vec<u32> {
         .collect()
 }
 
-
+/// Перезагружаем конфиг Арти передавая ему SIGHUP
 pub fn reload_config(name: Option<&str>) -> Result<(), anyhow::Error> {
     let name = name.unwrap_or(constants::ARTI_EXECUTABLE_NAME);
     let pids = pids_by_name(name);
@@ -238,6 +244,8 @@ mod tests {
 
 
     #[test]
+    /// Позитивный тест save_bridges_in_arti_log которая должна прочитать мосты из файла
+    /// и записать их в конфиг Арти.
     fn test_save_bridges_in_arti_log_positive() {
         let bridges_path = Path::new("src/tests/data/bridges.conf");
         let bridges = get_bridges_from_file(&bridges_path).unwrap();
@@ -261,6 +269,13 @@ mod tests {
         let got_lines = normalize(bridges_from_config_file).sort();
 
         assert_eq!(exp_lines, got_lines);
-    }
 
+        // Тут мы удаляем запись bridges в toml конфиге и проверяем удалилась ли она.
+        save_bridges_in_arti_log(&config_path, None).ok();
+
+        let text = fs::read_to_string(&config_path).unwrap();
+        let doc = text.parse::<DocumentMut>().unwrap();
+
+        assert!(doc.get("bridges").and_then(|t| t.get("bridges")).is_none());
+    }
 }

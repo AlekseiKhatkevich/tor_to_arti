@@ -1,6 +1,4 @@
-// /etc/tor/bridges.conf -> /home/hardcase/.config/arti
 // Нормальную компиляцию сделать
-// коммунты к функциям
 // cargo run --  -f /etc/tor/bridges.conf -t  /home/hardcase/.config/arti/arti.toml  -r
 
 use clap::Parser;
