@@ -15,3 +15,9 @@ nix = { version = "0.31.1", features = ["process", "signal"] }
 
 [dev-dependencies]
 filetime = "0.2.27"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
